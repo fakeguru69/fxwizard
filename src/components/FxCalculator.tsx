@@ -95,7 +95,7 @@ export const FxCalculator: React.FC<FxCalculatorProps> = ({
     } else if (val === '=') {
       const evaluated = evaluateMathExpression(expression);
       if (evaluated !== null) {
-        setExpression(String(Math.round(evaluated * 1000) / 1000));
+        setExpression(evaluated.toFixed(2));
         saveToHistory(evaluated);
       }
     } else {
@@ -295,7 +295,7 @@ export const FxCalculator: React.FC<FxCalculatorProps> = ({
                 </p>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="text-3xl md:text-4xl font-mono font-black text-amber-200 tracking-tight">
-                    {convertedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                    {convertedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                   <span className="text-sm font-bold text-slate-300">{toCurrency}</span>
                 </div>

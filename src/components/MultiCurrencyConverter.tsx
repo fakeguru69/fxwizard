@@ -64,19 +64,10 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
     return evaluated !== null && !isNaN(evaluated) ? evaluated : parseFloat(driverAmountStr) || 0;
   }, [driverAmountStr]);
 
-  // Format currency value cleanly
+  // Format currency value cleanly to exactly 2 decimal points
   const formatAmount = (val: number) => {
     if (isNaN(val)) return '0.00';
-    if (val > 0 && val < 0.001) {
-      return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
-    }
-    if (val >= 100000) {
-      return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    if (val >= 1000) {
-      return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   // Convert every active currency relative to the active driver
@@ -125,12 +116,7 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
     playRuneClick();
     const evaluated = evaluateMathExpression(driverAmountStr);
     if (evaluated !== null && !isNaN(evaluated)) {
-      const clean = evaluated < 0.001 
-        ? evaluated.toFixed(6) 
-        : evaluated < 1 
-        ? evaluated.toFixed(4) 
-        : (Math.round(evaluated * 100) / 100).toString();
-      setDriverAmountStr(clean);
+      setDriverAmountStr(evaluated.toFixed(2));
     }
   };
 
@@ -216,9 +202,7 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
     if (!/[+\-*/()%]/.test(driverAmountStr)) return null;
     const evaluated = evaluateMathExpression(driverAmountStr);
     if (evaluated !== null && !isNaN(evaluated)) {
-      return evaluated < 0.01 
-        ? evaluated.toFixed(4) 
-        : evaluated.toLocaleString(undefined, { maximumFractionDigits: 4 });
+      return evaluated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     return null;
   }, [driverAmountStr]);
