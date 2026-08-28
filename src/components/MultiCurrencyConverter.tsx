@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Plus, 
   Trash2, 
@@ -12,8 +12,11 @@ import {
   Delete,
   X,
   Equal,
-  Percent,
-  Sliders
+  Crown,
+  Anchor,
+  ArrowUpDown,
+  CornerDownRight,
+  Sparkle
 } from 'lucide-react';
 import { ExchangeRatesData } from '../types';
 import { getCurrencyInfo } from '../data/currencies';
@@ -51,19 +54,15 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
   onOpenChartForPair,
   onReorderCurrencies,
 }) => {
-  // Base currency amount input string
+  // Base currency amount string
   const [baseAmountStr, setBaseAmountStr] = useState<string>('1.00');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [guruProphecyIndex, setGuruProphecyIndex] = useState<number>(0);
   
-  // Interactive Calculator State
-  const [showKeypad, setShowKeypad] = useState<boolean>(false);
-  const [activeKeypadTarget, setActiveKeypadTarget] = useState<string>(baseCurrency);
-  const [targetInputExprs, setTargetInputExprs] = useState<Record<string, string>>({});
-
-  const anchorInputRef = useRef<HTMLInputElement>(null);
-
-  const baseInfo = useMemo(() => getCurrencyInfo(baseCurrency), [baseCurrency]);
+  // Interactive Calculator Modal State
+  const [isCalcModalOpen, setIsCalcModalOpen] = useState<boolean>(false);
+  const [activeCalcCurrency, setActiveCalcCurrency] = useState<string>(baseCurrency);
+  const [calcInputExprs, setCalcInputExprs] = useState<Record<string, string>>({});
 
   // Evaluated base amount
   const numericBaseAmount = useMemo(() => {
@@ -89,45 +88,44 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
     return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   };
 
-  // Build sorted list of target cards
-  const targetCards = useMemo(() => {
+  // Build unified cards list for ALL active currencies (including anchor)
+  const unifiedCards = useMemo(() => {
     if (!ratesData || !ratesData.rates) return [];
-
     const baseRate = ratesData.rates[baseCurrency] || 1.0;
 
-    return activeCurrencies
-      .filter((code) => code !== baseCurrency)
-      .map((code) => {
-        const info = getCurrencyInfo(code);
-        const targetRateGlobal = ratesData.rates[code] || 0;
-        const rateAgainstBase = baseRate > 0 ? targetRateGlobal / baseRate : 0;
-        const convertedValue = numericBaseAmount * rateAgainstBase;
-        const invertedRate = rateAgainstBase > 0 ? 1 / rateAgainstBase : 0;
+    return activeCurrencies.map((code) => {
+      const info = getCurrencyInfo(code);
+      const isAnchor = code === baseCurrency;
+      const targetRateGlobal = ratesData.rates[code] || 0;
+      const rateAgainstBase = isAnchor ? 1.0 : (baseRate > 0 ? targetRateGlobal / baseRate : 0);
+      const convertedValue = isAnchor ? numericBaseAmount : numericBaseAmount * rateAgainstBase;
+      const invertedRate = rateAgainstBase > 0 ? 1 / rateAgainstBase : 0;
 
-        return {
-          ...info,
-          rate: rateAgainstBase,
-          invertedRate,
-          convertedValue,
-        };
-      });
+      return {
+        ...info,
+        isAnchor,
+        rate: rateAgainstBase,
+        invertedRate,
+        convertedValue,
+      };
+    });
   }, [activeCurrencies, baseCurrency, ratesData, numericBaseAmount]);
 
-  // Get active expression string for the currently targeted currency
-  const getActiveExpression = (): string => {
-    if (activeKeypadTarget === baseCurrency) {
+  // Active target expression for calculator
+  const getActiveExpression = (code: string): string => {
+    if (code === baseCurrency) {
       return baseAmountStr;
     }
-    if (targetInputExprs[activeKeypadTarget] !== undefined) {
-      return targetInputExprs[activeKeypadTarget];
+    if (calcInputExprs[code] !== undefined) {
+      return calcInputExprs[code];
     }
-    const card = targetCards.find((c) => c.code === activeKeypadTarget);
+    const card = unifiedCards.find((c) => c.code === code);
     return card ? formatAmount(card.convertedValue).replace(/,/g, '') : '0';
   };
 
-  // Real-time active expression result preview
+  // Evaluated math preview for active calculator target
   const previewActiveMathResult = useMemo(() => {
-    const expr = getActiveExpression();
+    const expr = getActiveExpression(activeCalcCurrency);
     if (!hasMathExpression(expr)) return null;
     const evaluated = evaluateMathExpression(expr);
     if (evaluated !== null && !isNaN(evaluated)) {
@@ -136,10 +134,10 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
         : evaluated.toLocaleString(undefined, { maximumFractionDigits: 4 });
     }
     return null;
-  }, [baseAmountStr, targetInputExprs, activeKeypadTarget, targetCards]);
+  }, [baseAmountStr, calcInputExprs, activeCalcCurrency, unifiedCards]);
 
-  // Settle expression for the active currency
-  const handleSettleMath = (targetCode = activeKeypadTarget) => {
+  // Settle expression for any currency
+  const handleSettleMath = (targetCode = activeCalcCurrency) => {
     playRuneClick();
     if (targetCode === baseCurrency) {
       const evaluated = evaluateMathExpression(baseAmountStr);
@@ -152,7 +150,7 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
         setBaseAmountStr(clean);
       }
     } else {
-      const currentExpr = targetInputExprs[targetCode];
+      const currentExpr = calcInputExprs[targetCode];
       if (currentExpr) {
         const evaluated = evaluateMathExpression(currentExpr);
         if (evaluated !== null && !isNaN(evaluated) && ratesData?.rates) {
@@ -168,8 +166,7 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
               : (Math.round(calculatedBase * 100) / 100).toString();
             setBaseAmountStr(formatted);
           }
-          // Clear custom input so it falls back to sync
-          setTargetInputExprs((prev) => {
+          setCalcInputExprs((prev) => {
             const next = { ...prev };
             delete next[targetCode];
             return next;
@@ -179,17 +176,21 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
     }
   };
 
-  // Handle direct input on any currency card (bidirectional calculation)
-  const handleCardInputChange = (targetCode: string, inputVal: string) => {
-    setActiveKeypadTarget(targetCode);
-    setShowKeypad(true);
+  // Open calculator popup for a specific currency
+  const openCalculator = (code: string) => {
+    playRuneClick();
+    setActiveCalcCurrency(code);
+    setIsCalcModalOpen(true);
+  };
 
+  // Handle direct input change on any currency card
+  const handleCardInputChange = (targetCode: string, inputVal: string) => {
     if (targetCode === baseCurrency) {
       setBaseAmountStr(inputVal);
       return;
     }
 
-    setTargetInputExprs((prev) => ({ ...prev, [targetCode]: inputVal }));
+    setCalcInputExprs((prev) => ({ ...prev, [targetCode]: inputVal }));
 
     if (!ratesData || !ratesData.rates) return;
 
@@ -211,32 +212,32 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
     }
   };
 
-  // Keypad button click handler for active target
+  // Keypad button click handler for popup calculator
   const handleKeypadPress = (btn: string) => {
     playRuneClick();
-    const currentVal = getActiveExpression();
+    const currentVal = getActiveExpression(activeCalcCurrency);
 
     if (btn === 'CLEAR') {
-      if (activeKeypadTarget === baseCurrency) {
+      if (activeCalcCurrency === baseCurrency) {
         setBaseAmountStr('0');
       } else {
-        handleCardInputChange(activeKeypadTarget, '0');
+        handleCardInputChange(activeCalcCurrency, '0');
       }
       return;
     }
 
     if (btn === 'BACKSPACE') {
       const nextVal = currentVal.length > 1 ? currentVal.slice(0, -1) : '0';
-      if (activeKeypadTarget === baseCurrency) {
+      if (activeCalcCurrency === baseCurrency) {
         setBaseAmountStr(nextVal);
       } else {
-        handleCardInputChange(activeKeypadTarget, nextVal);
+        handleCardInputChange(activeCalcCurrency, nextVal);
       }
       return;
     }
 
     if (btn === '=') {
-      handleSettleMath(activeKeypadTarget);
+      handleSettleMath(activeCalcCurrency);
       return;
     }
 
@@ -250,17 +251,17 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
       nextVal = currentVal + btn;
     }
 
-    if (activeKeypadTarget === baseCurrency) {
+    if (activeCalcCurrency === baseCurrency) {
       setBaseAmountStr(nextVal);
     } else {
-      handleCardInputChange(activeKeypadTarget, nextVal);
+      handleCardInputChange(activeCalcCurrency, nextVal);
     }
   };
 
   // Quick percentage or multiplier modifier
   const handleQuickModifier = (modifier: string) => {
     playRuneClick();
-    const currentVal = getActiveExpression();
+    const currentVal = getActiveExpression(activeCalcCurrency);
     let nextVal = currentVal;
 
     if (modifier === '+10') nextVal = `${currentVal} + 10`;
@@ -272,10 +273,10 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
     else if (modifier === '*2') nextVal = `${currentVal} * 2`;
     else if (modifier === '/2') nextVal = `${currentVal} / 2`;
 
-    if (activeKeypadTarget === baseCurrency) {
+    if (activeCalcCurrency === baseCurrency) {
       setBaseAmountStr(nextVal);
     } else {
-      handleCardInputChange(activeKeypadTarget, nextVal);
+      handleCardInputChange(activeCalcCurrency, nextVal);
     }
   };
 
@@ -295,10 +296,11 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
     }
   };
 
+  // Promote any currency to Anchor
   const promoteToAnchor = (code: string) => {
     playSpellChime();
     triggerMagicSparks();
-    setActiveKeypadTarget(code);
+    setActiveCalcCurrency(code);
     onChangeBaseCurrency(code);
   };
 
@@ -323,6 +325,8 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
     }
   };
 
+  const activeCalcInfo = useMemo(() => getCurrencyInfo(activeCalcCurrency), [activeCalcCurrency]);
+
   return (
     <div id="multi-currency-converter" className="max-w-2xl mx-auto space-y-3.5 sm:space-y-4">
       
@@ -330,28 +334,28 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
       <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
         <div className="flex items-center gap-1.5 flex-nowrap">
           <button
-            onClick={() => handleApplyPresetPack(['USD', 'EUR', 'SGD', 'MYR'])}
+            onClick={() => handleApplyPresetPack(['SGD', 'MYR', 'USD', 'EUR'])}
             className="px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 whitespace-nowrap text-xs font-semibold active:scale-95 transition-all"
           >
-            ✨ 4 Pairs (USD/EUR/SGD/MYR)
+            🇸🇬 SGD Anchor Pack
+          </button>
+          <button
+            onClick={() => handleApplyPresetPack(['USD', 'EUR', 'SGD', 'MYR'])}
+            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 whitespace-nowrap text-xs active:scale-95 transition-all"
+          >
+            ✨ 4 Pairs
+          </button>
+          <button
+            onClick={() => handleApplyPresetPack(['SGD', 'MYR', 'THB', 'IDR', 'PHP', 'VND', 'USD'])}
+            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 whitespace-nowrap text-xs active:scale-95 transition-all"
+          >
+            🌴 ASEAN
           </button>
           <button
             onClick={() => handleApplyPresetPack(['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'])}
             className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 whitespace-nowrap text-xs active:scale-95 transition-all"
           >
             👑 Majors
-          </button>
-          <button
-            onClick={() => handleApplyPresetPack(['USD', 'SGD', 'MYR', 'THB', 'IDR', 'PHP', 'VND'])}
-            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 whitespace-nowrap text-xs active:scale-95 transition-all"
-          >
-            🌴 ASEAN
-          </button>
-          <button
-            onClick={() => handleApplyPresetPack(['EUR', 'USD', 'GBP', 'CHF', 'SEK', 'NOK'])}
-            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 whitespace-nowrap text-xs active:scale-95 transition-all"
-          >
-            🏰 Europe
           </button>
         </div>
 
@@ -362,154 +366,47 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
         </div>
       </div>
 
-      {/* CURRENCY CONVERSION STACK */}
+      {/* ========================================================================= */}
+      {/* UNIFIED CURRENCY CARDS LIST (Same Layout & Design for Anchor & All Rest) */}
+      {/* ========================================================================= */}
       <div className="space-y-2.5">
-        
-        {/* ========================================================================= */}
-        {/* 1. TOP ANCHOR CARD */}
-        {/* ========================================================================= */}
-        <div 
-          id={`currency-card-${baseCurrency}`}
-          className={`relative rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40 border-2 ${
-            activeKeypadTarget === baseCurrency 
-              ? 'border-amber-400 shadow-xl shadow-amber-950/30 ring-2 ring-amber-400/20' 
-              : 'border-amber-400/80 shadow-lg shadow-amber-950/20'
-          } p-3.5 sm:p-4 transition-all`}
-        >
-          <div className="flex items-center justify-between gap-3">
-            
-            {/* Left: Flag, Code & Name */}
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-2xl sm:text-3xl select-none flex-shrink-0">
-                {baseInfo.flag}
-              </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-base font-extrabold text-amber-200 font-mono tracking-tight">
-                    {baseInfo.code}
-                  </span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 uppercase font-mono">
-                    Anchor
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 truncate max-w-[110px] sm:max-w-[150px]">
-                  {baseInfo.name}
-                </p>
-              </div>
-            </div>
+        {unifiedCards.map((curr, idx) => {
+          const isAnchor = curr.code === baseCurrency;
+          const formattedVal = isAnchor 
+            ? (numericBaseAmount < 0.001 && numericBaseAmount > 0 ? numericBaseAmount.toFixed(6) : numericBaseAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }))
+            : formatAmount(curr.convertedValue);
+          
+          const currentDisplayVal = isAnchor
+            ? baseAmountStr
+            : (calcInputExprs[curr.code] !== undefined ? calcInputExprs[curr.code] : formattedVal);
 
-            {/* Right: Editable Amount Input & Calculator Button */}
-            <div className="flex items-center gap-1.5 flex-1 justify-end">
-              <div className="relative max-w-[170px] sm:max-w-[210px] w-full">
-                <input
-                  ref={anchorInputRef}
-                  id="anchor-amount-input"
-                  type="text"
-                  inputMode="text"
-                  value={baseAmountStr}
-                  onClick={() => {
-                    setActiveKeypadTarget(baseCurrency);
-                    setShowKeypad(true);
-                  }}
-                  onFocus={() => {
-                    setActiveKeypadTarget(baseCurrency);
-                    setShowKeypad(true);
-                  }}
-                  onChange={(e) => {
-                    setActiveKeypadTarget(baseCurrency);
-                    setBaseAmountStr(e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSettleMath(baseCurrency);
-                    }
-                  }}
-                  placeholder="1.00"
-                  className={`w-full text-right px-2.5 py-1.5 bg-slate-950 border ${
-                    activeKeypadTarget === baseCurrency
-                      ? 'border-amber-400 text-amber-300 ring-1 ring-amber-400/40'
-                      : 'border-amber-400/60 text-amber-300'
-                  } rounded-xl text-lg sm:text-xl font-mono font-bold placeholder-slate-600 focus:outline-none transition-all shadow-inner`}
-                />
-
-                {/* Math Live Evaluator Preview Badge for Anchor */}
-                {activeKeypadTarget === baseCurrency && previewActiveMathResult && (
-                  <button
-                    onClick={() => handleSettleMath(baseCurrency)}
-                    className="absolute -bottom-5 right-1 flex items-center gap-1 text-[10px] text-emerald-400 font-mono bg-slate-900 px-2 py-0.5 rounded-lg border border-emerald-500/40 shadow hover:bg-slate-800 z-10 animate-in fade-in duration-150"
-                    title="Click to calculate expression"
-                  >
-                    <span>= {previewActiveMathResult}</span>
-                    <Equal className="w-2.5 h-2.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* Quick Calculator Keypad Toggle */}
-              <button
-                onClick={() => {
-                  playRuneClick();
-                  setActiveKeypadTarget(baseCurrency);
-                  setShowKeypad(!showKeypad || activeKeypadTarget !== baseCurrency);
-                }}
-                className={`p-2 rounded-xl transition-all ${
-                  showKeypad && activeKeypadTarget === baseCurrency
-                    ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20 scale-105' 
-                    : 'bg-slate-800 hover:bg-slate-700 text-amber-300'
-                }`}
-                title="Calculator Keypad"
-              >
-                <Calculator className="w-4 h-4" />
-              </button>
-
-              {/* Chart Button */}
-              <button
-                onClick={() => onOpenChartForPair(baseCurrency, targetCards[0]?.code || 'EUR')}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
-                title="View Chart"
-              >
-                <TrendingUp className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* 2. SUBSEQUENT TARGET CARDS */}
-        {/* ========================================================================= */}
-        {targetCards.map((curr, idx) => {
-          const isTargetActiveInCalc = activeKeypadTarget === curr.code;
-          const formattedVal = formatAmount(curr.convertedValue);
-          const currentDisplayVal = targetInputExprs[curr.code] !== undefined
-            ? targetInputExprs[curr.code]
-            : formattedVal;
           const rateFormatted = curr.rate < 0.001 ? curr.rate.toFixed(6) : curr.rate.toFixed(4);
 
           return (
             <div
               key={curr.code}
               id={`currency-card-${curr.code}`}
-              className={`group relative rounded-2xl bg-slate-900/90 border ${
-                isTargetActiveInCalc 
-                  ? 'border-amber-400 shadow-xl shadow-amber-950/20 ring-1 ring-amber-400/20' 
-                  : 'border-slate-800 hover:border-slate-700 shadow-md'
-              } p-3 sm:p-3.5 transition-all`}
+              className={`group relative rounded-2xl p-3 sm:p-3.5 transition-all shadow-md ${
+                isAnchor
+                  ? 'bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/50 border-2 border-amber-400 shadow-amber-950/20 ring-1 ring-amber-400/30'
+                  : 'bg-slate-900/90 border border-slate-800 hover:border-slate-700'
+              }`}
             >
               <div className="flex items-center justify-between gap-2">
                 
-                {/* Left: Reorder arrows + Flag + Code & Name */}
-                <div className="flex items-center gap-1.5 min-w-0">
+                {/* Left Section: Reorder arrows + Flag + Code & Name + Anchor Pill */}
+                <div className="flex items-center gap-2 min-w-0">
                   {/* Reorder Arrows */}
                   <div className="flex flex-col items-center justify-center -space-y-1">
                     <button
-                      onClick={() => moveCurrency(idx + 1, 'up')}
+                      onClick={() => moveCurrency(idx, 'up')}
                       className="p-0.5 text-slate-500 hover:text-amber-300 transition-colors"
                       title="Move up"
                     >
                       <ChevronUp className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => moveCurrency(idx + 1, 'down')}
+                      onClick={() => moveCurrency(idx, 'down')}
                       className="p-0.5 text-slate-500 hover:text-amber-300 transition-colors"
                       title="Move down"
                     >
@@ -517,99 +414,99 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
                     </button>
                   </div>
 
-                  {/* Flag & Promotable Code */}
+                  {/* Flag & Currency Name */}
                   <div 
-                    onClick={() => promoteToAnchor(curr.code)}
-                    className="flex items-center gap-2 cursor-pointer min-w-0 group/info"
-                    title={`Click to set ${curr.code} as Anchor`}
+                    onClick={() => {
+                      if (!isAnchor) promoteToAnchor(curr.code);
+                    }}
+                    className="flex items-center gap-2.5 cursor-pointer min-w-0 group/info"
+                    title={isAnchor ? 'Active Anchor Currency' : `Click to make ${curr.code} Anchor`}
                   >
                     <span className="text-2xl sm:text-3xl select-none flex-shrink-0">
                       {curr.flag}
                     </span>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className="text-base font-bold text-slate-100 group-hover/info:text-amber-300 font-mono transition-colors">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-base font-extrabold font-mono tracking-tight transition-colors ${
+                          isAnchor ? 'text-amber-300' : 'text-slate-100 group-hover/info:text-amber-300'
+                        }`}>
                           {curr.code}
                         </span>
-                        <span className="text-xs text-slate-500 font-mono">
-                          {curr.symbol}
-                        </span>
+
+                        {/* Anchor Status / Switch Button */}
+                        {isAnchor ? (
+                          <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 uppercase font-mono shadow-sm">
+                            <Crown className="w-2.5 h-2.5" />
+                            <span>Anchor</span>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              promoteToAnchor(curr.code);
+                            }}
+                            className="opacity-80 hover:opacity-100 flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded bg-slate-800 hover:bg-amber-400 hover:text-slate-950 text-slate-300 transition-all font-mono border border-slate-700"
+                            title={`Make ${curr.code} the anchor currency`}
+                          >
+                            <Anchor className="w-2.5 h-2.5" />
+                            <span>Set Anchor</span>
+                          </button>
+                        )}
                       </div>
-                      <p className="text-[11px] text-slate-400 truncate max-w-[85px] sm:max-w-[130px]">
+                      <p className="text-xs text-slate-400 truncate max-w-[95px] sm:max-w-[140px]">
                         {curr.name}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Right: Live Value Box & Actions */}
+                {/* Right Section: Editable Amount Box with Calculator Pop-up Trigger */}
                 <div className="flex items-center gap-1.5 flex-1 justify-end">
                   
-                  {/* Interactive Editable Amount Box with Calculator Trigger */}
+                  {/* Interactive Editable Amount Box */}
                   <div className="relative max-w-[145px] sm:max-w-[185px] w-full">
                     <input
                       type="text"
                       inputMode="text"
                       value={currentDisplayVal}
-                      onClick={() => {
-                        setActiveKeypadTarget(curr.code);
-                        setShowKeypad(true);
+                      onClick={() => openCalculator(curr.code)}
+                      onFocus={() => openCalculator(curr.code)}
+                      onChange={(e) => {
+                        handleCardInputChange(curr.code, e.target.value);
                       }}
-                      onFocus={() => {
-                        setActiveKeypadTarget(curr.code);
-                        setShowKeypad(true);
-                      }}
-                      onChange={(e) => handleCardInputChange(curr.code, e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           handleSettleMath(curr.code);
                         }
                       }}
+                      placeholder="0.00"
                       className={`w-full text-right px-2.5 py-1.5 bg-slate-950 border ${
-                        isTargetActiveInCalc
-                          ? 'border-amber-400 text-amber-200 ring-1 ring-amber-400/30'
+                        isAnchor 
+                          ? 'border-amber-400/80 text-amber-300 ring-1 ring-amber-400/30' 
                           : 'border-slate-800 hover:border-slate-700 text-amber-200'
-                      } rounded-xl text-base sm:text-lg font-mono font-bold placeholder-slate-600 focus:outline-none transition-all shadow-inner`}
+                      } rounded-xl text-base sm:text-lg font-mono font-bold placeholder-slate-600 focus:outline-none transition-all shadow-inner cursor-pointer`}
                     />
-
-                    {/* Math Live Evaluator Preview Badge for Target Card */}
-                    {isTargetActiveInCalc && previewActiveMathResult && (
-                      <button
-                        onClick={() => handleSettleMath(curr.code)}
-                        className="absolute -bottom-5 right-1 flex items-center gap-1 text-[10px] text-emerald-400 font-mono bg-slate-900 px-2 py-0.5 rounded-lg border border-emerald-500/40 shadow hover:bg-slate-800 z-10 animate-in fade-in duration-150"
-                        title="Click to calculate expression"
-                      >
-                        <span>= {previewActiveMathResult}</span>
-                        <Equal className="w-2.5 h-2.5" />
-                      </button>
-                    )}
                   </div>
 
-                  {/* Calculator Button on each card */}
+                  {/* Calculator Button (Pop-up Trigger) */}
                   <button
-                    onClick={() => {
-                      playRuneClick();
-                      if (activeKeypadTarget === curr.code && showKeypad) {
-                        setShowKeypad(false);
-                      } else {
-                        setActiveKeypadTarget(curr.code);
-                        setShowKeypad(true);
-                      }
-                    }}
+                    onClick={() => openCalculator(curr.code)}
                     className={`p-2 rounded-xl transition-all ${
-                      isTargetActiveInCalc && showKeypad
+                      isCalcModalOpen && activeCalcCurrency === curr.code
                         ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
-                        : 'bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-amber-300'
+                        : isAnchor
+                        ? 'bg-amber-400/20 hover:bg-amber-400 text-amber-300 hover:text-slate-950 border border-amber-400/40'
+                        : 'bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-amber-300 border border-slate-800'
                     }`}
-                    title={`Calculate ${curr.code}`}
+                    title={`Open Calculator for ${curr.code}`}
                   >
                     <Calculator className="w-4 h-4" />
                   </button>
 
-                  {/* Quick Copy Button */}
+                  {/* Copy Button */}
                   <button
                     onClick={() => handleCopy(formattedVal, curr.code)}
-                    className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-amber-300 transition-colors"
+                    className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-amber-300 transition-colors border border-slate-800"
                     title="Copy value"
                   >
                     {copiedCode === curr.code ? (
@@ -620,259 +517,61 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
                   </button>
 
                   {/* Chart shortcut (Desktop only) */}
-                  <button
-                    onClick={() => onOpenChartForPair(baseCurrency, curr.code)}
-                    className="p-2 rounded-xl bg-slate-950 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 transition-colors hidden sm:flex"
-                    title={`View ${baseCurrency}/${curr.code} Chart`}
-                  >
-                    <TrendingUp className="w-4 h-4" />
-                  </button>
+                  {!isAnchor && (
+                    <button
+                      onClick={() => onOpenChartForPair(baseCurrency, curr.code)}
+                      className="p-2 rounded-xl bg-slate-950 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 transition-colors hidden sm:flex border border-slate-800"
+                      title={`View ${baseCurrency}/${curr.code} Chart`}
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                    </button>
+                  )}
 
-                  {/* Remove Button (✕) */}
-                  <button
-                    onClick={() => {
-                      playRuneClick();
-                      onRemoveCurrency(curr.code);
-                    }}
-                    className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950 text-slate-500 hover:text-rose-400 transition-colors"
-                    title={`Remove ${curr.code}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {/* Remove Button (Non-anchor cards only) */}
+                  {!isAnchor ? (
+                    <button
+                      onClick={() => {
+                        playRuneClick();
+                        onRemoveCurrency(curr.code);
+                      }}
+                      className="p-2 rounded-xl bg-slate-950 hover:bg-rose-950 text-slate-500 hover:text-rose-400 transition-colors border border-slate-800"
+                      title={`Remove ${curr.code}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={onAddCurrency}
+                      className="p-2 rounded-xl bg-slate-950 hover:bg-amber-950 text-slate-400 hover:text-amber-300 transition-colors border border-slate-800 hidden sm:flex"
+                      title="Add more currencies"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Clean Rate Subtext */}
-              <div className="mt-1.5 pt-1 border-t border-slate-800/40 flex items-center justify-between text-[10px] font-mono text-slate-500">
-                <span>
-                  1 {baseCurrency} = <strong className="text-slate-300">{rateFormatted}</strong> {curr.code}
-                </span>
+              {/* Subtext Footer: Rate & Info */}
+              <div className="mt-1.5 pt-1 border-t border-slate-800/50 flex items-center justify-between text-[10px] font-mono text-slate-400">
+                {isAnchor ? (
+                  <span className="text-amber-300/80 font-medium">
+                    Primary Anchor Currency (All pairs converted from here)
+                  </span>
+                ) : (
+                  <span>
+                    1 {baseCurrency} = <strong className="text-slate-200">{rateFormatted}</strong> {curr.code}
+                  </span>
+                )}
+
                 <span className="text-slate-500 text-[10px]">
-                  Tap currency to make Anchor
+                  {isAnchor ? 'Tap any card to switch' : 'Tap input for calculator'}
                 </span>
               </div>
             </div>
           );
         })}
 
-        {/* ========================================================================= */}
-        {/* 3. DOCKED INTERACTIVE CALCULATOR PANEL (Activates on Click/Input) */}
-        {/* ========================================================================= */}
-        {showKeypad && (
-          <div 
-            id="interactive-currency-calculator"
-            className="p-4 rounded-3xl bg-gradient-to-b from-slate-900 via-indigo-950/40 to-slate-950 border-2 border-amber-500/50 shadow-2xl shadow-black/60 animate-in fade-in zoom-in-95 duration-200 space-y-3"
-          >
-            {/* Header: Current Active Currency Info & Close */}
-            <div className="flex items-center justify-between border-b border-amber-500/20 pb-2.5">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-amber-400/20 text-amber-300 border border-amber-400/40">
-                  <Calculator className="w-4 h-4" />
-                </span>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-slate-100 font-serif">
-                      Alchemical Math Cauldron
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-400 text-slate-950">
-                      {activeKeypadTarget}
-                    </span>
-                    {activeKeypadTarget === baseCurrency && (
-                      <span className="text-[9px] text-amber-300 font-mono">
-                        (Anchor)
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-slate-400">
-                    Input numbers, arithmetic (+, -, ×, ÷), or % modifiers to convert live
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => handleSettleMath(activeKeypadTarget)}
-                  className="px-2.5 py-1 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow transition-colors flex items-center gap-1"
-                >
-                  <Equal className="w-3.5 h-3.5" />
-                  <span>Calculate</span>
-                </button>
-                <button
-                  onClick={() => setShowKeypad(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors"
-                  title="Close Calculator"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Multiplier & Percentage Spells */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
-              <span className="text-[10px] font-mono text-slate-400 whitespace-nowrap mr-1">
-                Quick Spells:
-              </span>
-              {['+10', '+50', '+100', '+500', '+5%', '+10%', '*2', '/2'].map((mod) => (
-                <button
-                  key={mod}
-                  onClick={() => handleQuickModifier(mod)}
-                  className="px-2 py-1 rounded-lg bg-slate-950 hover:bg-indigo-900/40 text-amber-300 hover:text-amber-200 border border-slate-800 hover:border-amber-500/40 font-mono text-xs font-semibold active:scale-95 transition-all whitespace-nowrap"
-                >
-                  {mod === '*2' ? '×2' : mod === '/2' ? '÷2' : mod}
-                </button>
-              ))}
-            </div>
-
-            {/* Current Expression Display */}
-            <div className="px-3.5 py-2.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between font-mono">
-              <div className="min-w-0 flex-1">
-                <span className="text-[10px] text-slate-500 block">Current Expression ({activeKeypadTarget})</span>
-                <span className="text-base sm:text-lg font-bold text-amber-200 truncate block">
-                  {getActiveExpression()}
-                </span>
-              </div>
-              {previewActiveMathResult && (
-                <div className="text-right pl-2">
-                  <span className="text-[10px] text-emerald-400 block">Live Result</span>
-                  <span className="text-sm sm:text-base font-bold text-emerald-300">
-                    = {previewActiveMathResult}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Full Alchemical Keypad Grid */}
-            <div className="grid grid-cols-4 gap-1.5 font-mono text-sm sm:text-base">
-              <button 
-                onClick={() => handleKeypadPress('CLEAR')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 font-bold border border-rose-500/30 active:scale-95 transition-all"
-              >
-                C
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('(')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 active:scale-95 transition-all"
-              >
-                (
-              </button>
-              <button 
-                onClick={() => handleKeypadPress(')')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 active:scale-95 transition-all"
-              >
-                )
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('/')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 active:scale-95 transition-all"
-              >
-                ÷
-              </button>
-
-              <button 
-                onClick={() => handleKeypadPress('7')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
-              >
-                7
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('8')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
-              >
-                8
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('9')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
-              >
-                9
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('*')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 active:scale-95 transition-all"
-              >
-                ×
-              </button>
-
-              <button 
-                onClick={() => handleKeypadPress('4')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
-              >
-                4
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('5')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
-              >
-                5
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('6')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
-              >
-                6
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('-')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 active:scale-95 transition-all"
-              >
-                −
-              </button>
-
-              <button 
-                onClick={() => handleKeypadPress('1')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
-              >
-                1
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('2')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
-              >
-                2
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('3')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
-              >
-                3
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('+')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 active:scale-95 transition-all"
-              >
-                +
-              </button>
-
-              <button 
-                onClick={() => handleKeypadPress('0')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
-              >
-                0
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('.')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
-              >
-                .
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('BACKSPACE')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center justify-center active:scale-95 transition-all"
-                title="Delete"
-              >
-                <Delete className="w-4 h-4" />
-              </button>
-              <button 
-                onClick={() => handleKeypadPress('=')} 
-                className="py-2.5 sm:py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black border border-amber-300 shadow-md active:scale-95 transition-all"
-              >
-                =
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 4. + SUMMON ANOTHER CURRENCY BUTTON */}
+        {/* Add Another Currency Button */}
         <button
           id="summon-currency-list-btn"
           onClick={onAddCurrency}
@@ -883,7 +582,246 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
         </button>
       </div>
 
-      {/* 5. COMPACT PROPHETIC GURU BANNER */}
+      {/* ========================================================================= */}
+      {/* INTERACTIVE CALCULATOR POP-UP MODAL */}
+      {/* ========================================================================= */}
+      {isCalcModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsCalcModalOpen(false)}
+        >
+          <div 
+            id="currency-calculator-popup"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-gradient-to-b from-slate-900 via-indigo-950/50 to-slate-950 border-2 border-amber-500/60 shadow-2xl shadow-black p-4 sm:p-5 space-y-3.5 animate-in slide-in-from-bottom-6 duration-200"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl select-none">{activeCalcInfo.flag}</span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-white font-serif">
+                      {activeCalcInfo.name} ({activeCalcInfo.code})
+                    </span>
+                    {activeCalcCurrency === baseCurrency ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-400 text-slate-950">
+                        Anchor
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => promoteToAnchor(activeCalcCurrency)}
+                        className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-slate-800 hover:bg-amber-400 hover:text-slate-950 text-amber-300 border border-slate-700 transition-colors flex items-center gap-1"
+                      >
+                        <Anchor className="w-2.5 h-2.5" />
+                        <span>Make Anchor</span>
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Live currency math calculator & expression evaluator
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsCalcModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                title="Close Calculator"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Spell Multipliers & Percentages */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+              <span className="text-[10px] font-mono text-slate-400 whitespace-nowrap mr-1">
+                Quick Spells:
+              </span>
+              {['+10', '+50', '+100', '+500', '+5%', '+10%', '*2', '/2'].map((mod) => (
+                <button
+                  key={mod}
+                  onClick={() => handleQuickModifier(mod)}
+                  className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-indigo-900/50 text-amber-300 hover:text-amber-200 border border-slate-800 hover:border-amber-500/40 font-mono text-xs font-semibold active:scale-95 transition-all whitespace-nowrap"
+                >
+                  {mod === '*2' ? '×2' : mod === '/2' ? '÷2' : mod}
+                </button>
+              ))}
+            </div>
+
+            {/* Current Expression & Result Display */}
+            <div className="px-4 py-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between font-mono shadow-inner">
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] text-slate-500 block uppercase">
+                  {activeCalcInfo.code} Expression
+                </span>
+                <span className="text-xl sm:text-2xl font-bold text-amber-300 truncate block">
+                  {getActiveExpression(activeCalcCurrency)}
+                </span>
+              </div>
+              {previewActiveMathResult && (
+                <div className="text-right pl-3">
+                  <span className="text-[10px] text-emerald-400 block uppercase">Calculated</span>
+                  <span className="text-base sm:text-lg font-bold text-emerald-300">
+                    = {previewActiveMathResult}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Keypad Grid */}
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 font-mono text-base">
+              <button 
+                onClick={() => handleKeypadPress('CLEAR')} 
+                className="py-3 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 font-bold border border-rose-500/30 active:scale-95 transition-all"
+              >
+                C
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('(')} 
+                className="py-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 active:scale-95 transition-all"
+              >
+                (
+              </button>
+              <button 
+                onClick={() => handleKeypadPress(')')} 
+                className="py-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 active:scale-95 transition-all"
+              >
+                )
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('/')} 
+                className="py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 active:scale-95 transition-all"
+              >
+                ÷
+              </button>
+
+              <button 
+                onClick={() => handleKeypadPress('7')} 
+                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
+              >
+                7
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('8')} 
+                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
+              >
+                8
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('9')} 
+                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
+              >
+                9
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('*')} 
+                className="py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 active:scale-95 transition-all"
+              >
+                ×
+              </button>
+
+              <button 
+                onClick={() => handleKeypadPress('4')} 
+                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
+              >
+                4
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('5')} 
+                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
+              >
+                5
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('6')} 
+                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
+              >
+                6
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('-')} 
+                className="py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 active:scale-95 transition-all"
+              >
+                −
+              </button>
+
+              <button 
+                onClick={() => handleKeypadPress('1')} 
+                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
+              >
+                1
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('2')} 
+                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
+              >
+                2
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('3')} 
+                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
+              >
+                3
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('+')} 
+                className="py-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 active:scale-95 transition-all"
+              >
+                +
+              </button>
+
+              <button 
+                onClick={() => handleKeypadPress('0')} 
+                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
+              >
+                0
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('.')} 
+                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-800 active:scale-95 transition-all"
+              >
+                .
+              </button>
+              <button 
+                onClick={() => handleKeypadPress('BACKSPACE')} 
+                className="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center justify-center active:scale-95 transition-all"
+                title="Delete"
+              >
+                <Delete className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => {
+                  handleKeypadPress('=');
+                  setIsCalcModalOpen(false);
+                }} 
+                className="py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black border border-amber-300 shadow-md active:scale-95 transition-all flex items-center justify-center gap-1"
+                title="Calculate & Apply"
+              >
+                <Equal className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-between pt-1 text-xs">
+              <button
+                onClick={() => handleSettleMath(activeCalcCurrency)}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono font-semibold transition-colors"
+              >
+                Evaluate Formula
+              </button>
+              <button
+                onClick={() => setIsCalcModalOpen(false)}
+                className="px-4 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold transition-colors shadow"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Prophetic Guru Banner */}
       <div 
         onClick={nextProphecy}
         className="group relative cursor-pointer overflow-hidden p-3 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-slate-900 to-amber-950/20 border border-amber-500/20 hover:border-amber-400 shadow-sm transition-all select-none"
@@ -899,4 +837,3 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
     </div>
   );
 };
-

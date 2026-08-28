@@ -32,17 +32,17 @@ import {
 export default function App() {
   // State
   const [baseCurrency, setBaseCurrency] = useState<string>(() => {
-    const saved = localStorage.getItem('fx_wizard_base_currency_v2') || localStorage.getItem('fx_wizard_base_currency');
+    const saved = localStorage.getItem('fx_wizard_base_currency_v3') || localStorage.getItem('fx_wizard_base_currency_v2') || localStorage.getItem('fx_wizard_base_currency');
     if (saved && typeof saved === 'string' && saved !== 'null' && saved !== 'undefined' && saved.trim()) {
       const clean = saved.trim().toUpperCase();
       if (clean !== 'BTC' && clean !== 'ETH' && clean !== 'XAU' && clean !== 'XAG') return clean;
     }
-    return 'USD';
+    return 'SGD';
   });
 
   const [activeCurrencies, setActiveCurrencies] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem('fx_wizard_active_currencies_v2');
+      const saved = localStorage.getItem('fx_wizard_active_currencies_v3') || localStorage.getItem('fx_wizard_active_currencies_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {

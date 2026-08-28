@@ -56,7 +56,7 @@ export const CURRENCIES: CurrencyInfo[] = [
   { code: 'HRK', name: 'Croatian Kuna', symbol: 'kn', flag: '🇭🇷', region: 'Europe', alchemyTitle: 'The Adriatic Mist', popular: false },
 ];
 
-export const DEFAULT_VIEW_CURRENCIES = ['USD', 'EUR', 'SGD', 'MYR'];
+export const DEFAULT_VIEW_CURRENCIES = ['SGD', 'MYR', 'USD', 'EUR'];
 
 export const CURRENCY_MAP = new Map<string, CurrencyInfo>(
   CURRENCIES.map((c) => [c.code, c])
