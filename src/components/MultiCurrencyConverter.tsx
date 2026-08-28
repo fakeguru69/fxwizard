@@ -293,12 +293,46 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
                   : 'bg-slate-900/90 border border-slate-800 hover:border-slate-700'
               }`}
             >
-              <div className="flex items-center justify-between gap-2.5">
+              <div className="flex items-center justify-between gap-2">
                 
+                {/* Reorder Arrows (Up / Down) */}
+                <div className="flex flex-col items-center justify-center -space-y-1.5 flex-shrink-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveCurrency(idx, 'up');
+                    }}
+                    disabled={idx === 0}
+                    className={`p-1 transition-colors ${
+                      idx === 0 
+                        ? 'text-slate-700 cursor-not-allowed' 
+                        : 'text-slate-500 hover:text-amber-300 active:scale-90'
+                    }`}
+                    title="Move up"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveCurrency(idx, 'down');
+                    }}
+                    disabled={idx === currencyCards.length - 1}
+                    className={`p-1 transition-colors ${
+                      idx === currencyCards.length - 1 
+                        ? 'text-slate-700 cursor-not-allowed' 
+                        : 'text-slate-500 hover:text-amber-300 active:scale-90'
+                    }`}
+                    title="Move down"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
                 {/* Left Side: Flag + Code + Name */}
                 <div 
                   onClick={() => openCalculator(curr.code)}
-                  className="flex items-center gap-2.5 cursor-pointer min-w-0 flex-shrink-0"
+                  className="flex items-center gap-2 cursor-pointer min-w-0 flex-shrink-0"
                 >
                   <span className="text-2xl sm:text-3xl select-none">
                     {curr.flag}
@@ -311,7 +345,7 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
                         {curr.code}
                       </span>
                     </div>
-                    <p className="text-[11px] sm:text-xs text-slate-400 truncate max-w-[100px] sm:max-w-[140px]">
+                    <p className="text-[11px] sm:text-xs text-slate-400 truncate max-w-[85px] sm:max-w-[140px]">
                       {curr.name}
                     </p>
                   </div>
@@ -384,18 +418,6 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
                   )}
                 </div>
               </div>
-
-              {/* Discreet Subtext: Live Cross-Rate info */}
-              {!isDriving && (
-                <div className="mt-1 pt-1 border-t border-slate-800/40 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                  <span>
-                    1 {activeDriverCode} = <strong className="text-slate-200">{rateFormatted}</strong> {curr.code}
-                  </span>
-                  <span className="text-slate-500">
-                    tap card to calculate
-                  </span>
-                </div>
-              )}
             </div>
           );
         })}
