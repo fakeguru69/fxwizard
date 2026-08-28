@@ -3,6 +3,7 @@ import { Search, X, Check, Plus, Globe } from 'lucide-react';
 import { CURRENCIES, getCurrencyInfo } from '../data/currencies';
 import { CurrencyInfo } from '../types';
 import { playRuneClick } from '../services/sound';
+import { CurrencyFlag } from './CurrencyFlag';
 
 interface CurrencySelectorModalProps {
   isOpen: boolean;
@@ -138,7 +139,12 @@ export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-2xl drop-shadow select-none">{currency.flag}</span>
+                  <CurrencyFlag 
+                    currencyCode={currency.code} 
+                    fallbackEmoji={currency.flag} 
+                    size="md" 
+                    className="shadow-sm ring-1 ring-slate-700/50"
+                  />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="font-bold text-sm text-slate-100">{currency.code}</span>

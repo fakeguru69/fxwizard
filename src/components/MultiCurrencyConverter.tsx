@@ -14,6 +14,7 @@ import { ExchangeRatesData } from '../types';
 import { getCurrencyInfo } from '../data/currencies';
 import { playRuneClick, playSpellChime } from '../services/sound';
 import { triggerMagicSparks, evaluateMathExpression } from '../services/fxService';
+import { CurrencyFlag } from './CurrencyFlag';
 
 interface MultiCurrencyConverterProps {
   baseCurrency: string;
@@ -230,21 +231,26 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
         <div className="flex items-center gap-1.5 flex-nowrap">
           <button
             onClick={() => handleApplyPresetPack(['SGD', 'MYR', 'USD', 'EUR'])}
-            className="px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 whitespace-nowrap text-xs font-semibold active:scale-95 transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 whitespace-nowrap text-xs font-semibold active:scale-95 transition-all"
           >
-            🇸🇬 SG & MY
+            <CurrencyFlag currencyCode="SGD" size="xs" />
+            <CurrencyFlag currencyCode="MYR" size="xs" className="-ml-1" />
+            <span>SG & MY</span>
           </button>
           <button
             onClick={() => handleApplyPresetPack(['SGD', 'MYR', 'THB', 'IDR', 'PHP', 'VND', 'USD'])}
-            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 whitespace-nowrap text-xs active:scale-95 transition-all"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 whitespace-nowrap text-xs active:scale-95 transition-all"
           >
-            🌴 ASEAN
+            <CurrencyFlag currencyCode="THB" size="xs" />
+            <span>ASEAN</span>
           </button>
           <button
             onClick={() => handleApplyPresetPack(['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'])}
-            className="px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 whitespace-nowrap text-xs active:scale-95 transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 whitespace-nowrap text-xs active:scale-95 transition-all"
           >
-            👑 Majors
+            <CurrencyFlag currencyCode="USD" size="xs" />
+            <CurrencyFlag currencyCode="EUR" size="xs" className="-ml-1" />
+            <span>Majors</span>
           </button>
           <button
             onClick={() => handleApplyPresetPack(['USD', 'EUR', 'SGD', 'MYR'])}
@@ -324,11 +330,14 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
                     setActiveDriverCode(curr.code);
                     onChangeBaseCurrency(curr.code);
                   }}
-                  className="flex items-center gap-2 cursor-pointer min-w-0 flex-shrink-0"
+                  className="flex items-center gap-2.5 cursor-pointer min-w-0 flex-shrink-0"
                 >
-                  <span className="text-2xl sm:text-3xl select-none">
-                    {curr.flag}
-                  </span>
+                  <CurrencyFlag 
+                    currencyCode={curr.code} 
+                    fallbackEmoji={curr.flag} 
+                    size="md" 
+                    className="shadow-md ring-1 ring-slate-700/50"
+                  />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className={`text-base sm:text-lg font-black font-mono tracking-tight ${
@@ -429,7 +438,12 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-amber-500/20 pb-2.5">
               <div className="flex items-center gap-2.5">
-                <span className="text-2xl select-none">{activeCalcInfo.flag}</span>
+                <CurrencyFlag 
+                  currencyCode={activeCalcInfo.code} 
+                  fallbackEmoji={activeCalcInfo.flag} 
+                  size="lg" 
+                  className="shadow-md ring-1 ring-slate-700/50"
+                />
                 <div>
                   <span className="text-sm font-bold text-white font-serif">
                     {activeCalcInfo.name} ({activeCalcInfo.code})

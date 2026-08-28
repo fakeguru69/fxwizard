@@ -18,6 +18,7 @@ import { ExchangeRatesData } from '../types';
 import { getCurrencyInfo, CURRENCIES } from '../data/currencies';
 import { playRuneClick, playSpellChime } from '../services/sound';
 import { triggerMagicSparks } from '../services/fxService';
+import { CurrencyFlag } from './CurrencyFlag';
 
 interface CurrencyChartTabProps {
   ratesData: ExchangeRatesData | null;
@@ -271,12 +272,12 @@ export const CurrencyChartTab: React.FC<CurrencyChartTabProps> = ({
                 >
                   {CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code} className="bg-slate-950 text-slate-100">
-                      {c.flag} {c.code} - {c.name}
+                      {c.code} - {c.name}
                     </option>
                   ))}
                 </select>
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-2xl pointer-events-none">
-                  {baseInfo.flag}
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <CurrencyFlag currencyCode={baseCurrency} fallbackEmoji={baseInfo.flag} size="sm" />
                 </span>
                 <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none">
                   ▼
@@ -312,12 +313,12 @@ export const CurrencyChartTab: React.FC<CurrencyChartTabProps> = ({
                 >
                   {CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code} className="bg-slate-950 text-slate-100">
-                      {c.flag} {c.code} - {c.name}
+                      {c.code} - {c.name}
                     </option>
                   ))}
                 </select>
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-2xl pointer-events-none">
-                  {targetInfo.flag}
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <CurrencyFlag currencyCode={targetCurrency} fallbackEmoji={targetInfo.flag} size="sm" />
                 </span>
                 <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none">
                   ▼

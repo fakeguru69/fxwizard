@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, TrendingUp, TrendingDown, Sparkles, Calendar, Activity } from 'lucide-react';
 import { getCurrencyInfo } from '../data/currencies';
 import { playRuneClick } from '../services/sound';
+import { CurrencyFlag } from './CurrencyFlag';
 
 interface HistoricalChartModalProps {
   isOpen: boolean;
@@ -126,9 +127,9 @@ export const HistoricalChartModal: React.FC<HistoricalChartModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/80">
           <div className="flex items-center gap-3">
-            <div className="flex items-center text-2xl drop-shadow">
-              <span>{baseInfo.flag}</span>
-              <span className="-ml-1.5">{targetInfo.flag}</span>
+            <div className="flex items-center shadow-md">
+              <CurrencyFlag currencyCode={baseCurrency} fallbackEmoji={baseInfo.flag} size="md" className="z-10 ring-1 ring-slate-700/50" />
+              <CurrencyFlag currencyCode={targetCurrency} fallbackEmoji={targetInfo.flag} size="md" className="-ml-2 ring-1 ring-slate-700/50" />
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-100 font-serif flex items-center gap-2">

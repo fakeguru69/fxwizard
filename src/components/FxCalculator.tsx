@@ -16,6 +16,7 @@ import { ExchangeRatesData } from '../types';
 import { CURRENCIES, getCurrencyInfo } from '../data/currencies';
 import { playRuneClick, playSpellChime } from '../services/sound';
 import { evaluateMathExpression, triggerMagicSparks } from '../services/fxService';
+import { CurrencyFlag } from './CurrencyFlag';
 
 interface FxCalculatorProps {
   ratesData: ExchangeRatesData | null;
@@ -191,12 +192,12 @@ export const FxCalculator: React.FC<FxCalculatorProps> = ({
                   >
                     {CURRENCIES.map((c) => (
                       <option key={c.code} value={c.code} className="bg-slate-950 text-slate-100">
-                        {c.flag} {c.code} - {c.name}
+                        {c.code} - {c.name}
                       </option>
                     ))}
                   </select>
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xl pointer-events-none">
-                    {fromInfo.flag}
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <CurrencyFlag currencyCode={fromCurrency} fallbackEmoji={fromInfo.flag} size="sm" />
                   </span>
                 </div>
               </div>
@@ -230,12 +231,12 @@ export const FxCalculator: React.FC<FxCalculatorProps> = ({
                   >
                     {CURRENCIES.map((c) => (
                       <option key={c.code} value={c.code} className="bg-slate-950 text-slate-100">
-                        {c.flag} {c.code} - {c.name}
+                        {c.code} - {c.name}
                       </option>
                     ))}
                   </select>
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xl pointer-events-none">
-                    {toInfo.flag}
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <CurrencyFlag currencyCode={toCurrency} fallbackEmoji={toInfo.flag} size="sm" />
                   </span>
                 </div>
               </div>
