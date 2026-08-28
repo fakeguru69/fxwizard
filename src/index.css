@@ -20,12 +20,14 @@
   max-width: 100% !important;
   min-width: 0 !important;
   overflow-x: hidden;
-  color-scheme: dark;
+  color-scheme: dark !important;
+  color: #ffffff !important;
 }
 
 #disqus_thread iframe {
   max-width: 100% !important;
   width: 100% !important;
+  color-scheme: dark !important;
 }
 
 /* Custom enchanted scrollbar */
