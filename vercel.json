@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/disqus-embed.html",
+      "destination": "/disqus-embed.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

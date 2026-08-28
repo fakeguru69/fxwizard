@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FX Wizard — Merlin Alchemical Currency Converter</title>
+    <meta name="description" content="Enchanted real-time currency conversion, calculator, rate alerts, offline grimoire, and live market news." />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta property="og:title" content="FX Wizard — Merlin Alchemical Currency Converter" />
+    <meta property="og:description" content="Enchanted real-time currency conversion, calculator, rate alerts, offline grimoire, and live market news." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="text/javascript">
+      (function(c,l,a,r,i,t,y){
+          c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+          t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+          y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "y99oytt5fw");
+    </script>
+    <script>
+      (function() {
+        function shouldSuppress(msg, src) {
+          if (!msg || msg === 'Script error.' || msg === 'Script error' || String(msg).indexOf('Script error') !== -1) return true;
+          if (src && (src.indexOf('disqus') !== -1 || src.indexOf('disquscdn') !== -1)) return true;
+          return false;
+        }
+        var origOnError = window.onerror;
+        window.onerror = function(msg, url, line, col, err) {
+          if (shouldSuppress(msg, url)) return true;
+          if (typeof origOnError === 'function') return origOnError.apply(this, arguments);
+          return false;
+        };
+        window.addEventListener('error', function(event) {
+          if (shouldSuppress(event.message, event.filename)) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            return true;
+          }
+        }, true);
+        window.addEventListener('unhandledrejection', function(event) {
+          var reasonStr = (event && event.reason) ? (event.reason.message || String(event.reason)) : '';
+          if (shouldSuppress(reasonStr, '')) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            return true;
+          }
+        }, true);
+      })();
+    </script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

@@ -1,0 +1,6 @@
+{
+  "name": "FX Wizard",
+  "description": "Merlin-themed multi-currency converter, real-time exchange calculator, rate threshold alerts, offline mode, and live FX market news.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
