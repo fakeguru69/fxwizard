@@ -2,9 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { 
   Plus, 
   Trash2, 
-  Copy, 
-  Check, 
-  TrendingUp, 
   Sparkles, 
   ChevronUp, 
   ChevronDown, 
@@ -53,7 +50,6 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
   const [activeDriverCode, setActiveDriverCode] = useState<string>(baseCurrency);
   const [driverAmountStr, setDriverAmountStr] = useState<string>('1.00');
   
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [guruProphecyIndex, setGuruProphecyIndex] = useState<number>(0);
   
   // Interactive Calculator Modal State
@@ -199,13 +195,6 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
     }
   };
 
-  const handleCopy = (text: string, code: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedCode(code);
-    playRuneClick();
-    setTimeout(() => setCopiedCode(null), 2000);
-  };
-
   const nextProphecy = () => {
     playSpellChime();
     triggerMagicSparks();
@@ -331,7 +320,10 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
 
                 {/* Left Side: Flag + Code + Name */}
                 <div 
-                  onClick={() => openCalculator(curr.code)}
+                  onClick={() => {
+                    setActiveDriverCode(curr.code);
+                    onChangeBaseCurrency(curr.code);
+                  }}
                   className="flex items-center gap-2 cursor-pointer min-w-0 flex-shrink-0"
                 >
                   <span className="text-2xl sm:text-3xl select-none">
@@ -345,20 +337,17 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
                         {curr.code}
                       </span>
                     </div>
-                    <p className="text-[11px] sm:text-xs text-slate-400 truncate max-w-[85px] sm:max-w-[140px]">
+                    <p className="text-[11px] sm:text-xs text-slate-400 truncate max-w-[85px] sm:max-w-[130px]">
                       {curr.name}
                     </p>
                   </div>
                 </div>
 
-                {/* Right Side: Big Spacious Amount Box & Actions */}
+                {/* Right Side: Consistent Fixed-Width Amount Box & Action Buttons */}
                 <div className="flex items-center gap-1.5 flex-1 justify-end min-w-0">
                   
-                  {/* Clean, Full-Width Number Input (Tapping opens Calculator) */}
-                  <div 
-                    onClick={() => openCalculator(curr.code)}
-                    className="relative flex-1 max-w-[200px] sm:max-w-[240px] cursor-pointer"
-                  >
+                  {/* Consistent Width Number Input (Direct keyboard typing without opening popup) */}
+                  <div className="relative w-[130px] sm:w-[170px] flex-shrink-0">
                     <input
                       type="text"
                       inputMode="decimal"
@@ -369,44 +358,35 @@ export const MultiCurrencyConverter: React.FC<MultiCurrencyConverterProps> = ({
                         onChangeBaseCurrency(curr.code);
                       }}
                       placeholder="0.00"
-                      className={`w-full text-right px-3 py-1.5 bg-slate-950 border ${
+                      className={`w-full text-right px-2.5 sm:px-3 py-1.5 bg-slate-950 border ${
                         isDriving 
-                          ? 'border-amber-400/80 text-amber-300' 
-                          : 'border-slate-800 text-slate-100'
-                      } rounded-xl text-base sm:text-xl font-mono font-bold placeholder-slate-600 focus:outline-none transition-all shadow-inner`}
+                          ? 'border-amber-400/80 text-amber-300 shadow-amber-950/20' 
+                          : 'border-slate-800 text-slate-100 hover:border-slate-700'
+                      } rounded-xl text-base sm:text-lg font-mono font-bold placeholder-slate-600 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/40 transition-all shadow-inner`}
                     />
                   </div>
 
-                  {/* Calculator Button */}
+                  {/* Calculator Button (Tapping opens Calculator Pop-up) */}
                   <button
-                    onClick={() => openCalculator(curr.code)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openCalculator(curr.code);
+                    }}
                     className={`p-2 rounded-xl transition-all flex-shrink-0 ${
                       isCalcModalOpen && activeCalcCurrency === curr.code
                         ? 'bg-amber-400 text-slate-950 shadow-md'
                         : 'bg-slate-950 hover:bg-slate-800 text-amber-400 border border-slate-800'
                     }`}
-                    title="Open Calculator"
+                    title={`Open Calculator for ${curr.code}`}
                   >
                     <Calculator className="w-4 h-4" />
-                  </button>
-
-                  {/* Copy Button */}
-                  <button
-                    onClick={() => handleCopy(displayValue, curr.code)}
-                    className="p-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-amber-300 transition-colors border border-slate-800 flex-shrink-0"
-                    title="Copy value"
-                  >
-                    {copiedCode === curr.code ? (
-                      <Check className="w-4 h-4 text-emerald-400" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
                   </button>
 
                   {/* Delete Button (Only when more than 2 currencies) */}
                   {activeCurrencies.length > 2 && (
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         playRuneClick();
                         onRemoveCurrency(curr.code);
                       }}
